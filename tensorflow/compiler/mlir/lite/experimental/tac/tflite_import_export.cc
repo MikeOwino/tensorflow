@@ -14,6 +14,8 @@ limitations under the License.
 ==============================================================================*/
 #include "tensorflow/compiler/mlir/lite/experimental/tac/tflite_import_export.h"
 
+#include <memory>
+#include <set>
 #include <string>
 
 #include "absl/status/status.h"
@@ -58,7 +60,7 @@ void AttachCostPerDevice(mlir::ModuleOp module,
 
       mlir::StringAttr device_identifier =
           mlir::StringAttr::get(module.getContext(), device);
-      auto float_type = mlir::FloatType::getF32(module.getContext());
+      auto float_type = mlir::Float32Type::get(module.getContext());
       auto float_attr =
           mlir::FloatAttr::get(float_type, static_cast<float>(cost));
       device_costs.push_back({device_identifier, float_attr});

@@ -154,6 +154,7 @@ class _EagerSavedModelLoader(loader_impl.SavedModelLoader):
       else:
         original_input_names = []
         input_specs = []
+
       # TODO(b/205015292): Support optional arguments
       feeds = [
           wrap_function._get_element_from_tensor_info(input_spec, wrapped.graph)  # pylint: disable=protected-access
@@ -181,8 +182,19 @@ class _EagerSavedModelLoader(loader_impl.SavedModelLoader):
           input_names.append(original_input_name)
           input_tensors.append(feed)
       fetches = {name: out for name, out in signature_def.outputs.items()}
+      input_signature = (
+          (),
+          func_graph.convert_structure_to_signature(
+              dict(zip(input_names, input_tensors))
+          ),
+      )
       try:
-        signature_fn = wrapped.prune(feeds=feeds, fetches=fetches)
+        signature_fn = wrapped.prune(
+            feeds=feeds,
+            fetches=fetches,
+            input_signature=input_signature,
+            are_keyword_args_also_positional=True,
+        )
       except lift_to_graph.UnliftableError as ex:
         # Mutate the exception to add a bit more detail.
         args = ex.args
@@ -198,14 +210,9 @@ class _EagerSavedModelLoader(loader_impl.SavedModelLoader):
         ).format(signature_key) + message
         ex.args = (message,) + args[1:]
         raise
+
       # pylint: disable=protected-access
       signature_fn._arg_keywords = input_names
-      signature_fn._func_graph.structured_input_signature = (
-          (),
-          func_graph.convert_structure_to_signature(
-              dict(zip(input_names, input_tensors))
-          ),
-      )
 
       if len(input_names) == 1:
         # Allowing positional arguments does not create any ambiguity if there's
@@ -217,7 +224,7 @@ class _EagerSavedModelLoader(loader_impl.SavedModelLoader):
       signature_functions[signature_key] = signature_fn
     return signature_functions
 
-  def load(self, tags):
+  def load(self, tags, skip_restoring_checkpoint=False):
     """Creates an object from the MetaGraph identified by `tags`."""
     meta_graph_def = self.get_meta_graph_def_from_tags(tags)
     load_shared_name_suffix = "_load_{}".format(ops.uid())
@@ -246,7 +253,10 @@ class _EagerSavedModelLoader(loader_impl.SavedModelLoader):
     )
     (saver,) = load_graph_returns
     restore_from_saver = self._extract_saver_restore(wrapped, saver)
-    self.restore_variables(wrapped, restore_from_saver)
+
+    if not skip_restoring_checkpoint:
+      self.restore_variables(wrapped, restore_from_saver)
+
     with wrapped.graph.as_default():
       init_op = (
           loader_impl.get_init_op(meta_graph_def)
@@ -299,10 +309,12 @@ class _EagerSavedModelLoader(loader_impl.SavedModelLoader):
     return root
 
 
-def load(export_dir, tags):
+def load(export_dir, tags, skip_restoring_checkpoint=False):
   """Load a v1-style SavedModel as an object."""
   metrics.IncrementReadApi(_LOAD_V1_V2_LABEL)
   loader = _EagerSavedModelLoader(export_dir)
-  result = loader.load(tags=tags)
+  result = loader.load(
+      tags=tags, skip_restoring_checkpoint=skip_restoring_checkpoint
+  )
   metrics.IncrementRead(write_version="1")
   return result
