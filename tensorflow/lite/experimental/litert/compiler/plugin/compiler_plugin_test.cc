@@ -16,7 +16,6 @@
 
 #include <array>
 #include <sstream>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -29,13 +28,11 @@
 #include "tensorflow/lite/experimental/litert/core/build_stamp.h"
 #include "tensorflow/lite/experimental/litert/core/filesystem.h"
 #include "tensorflow/lite/experimental/litert/test/common.h"
-#include "tensorflow/lite/experimental/litert/test/test_macros.h"
 #include "tensorflow/lite/experimental/litert/tools/dump.h"
 
 namespace litert::internal {
 namespace {
 
-using ::testing::HasSubstr;
 using testing::UniqueTestDirectory;
 
 constexpr absl::string_view kTestPluginSearchPath =
@@ -125,7 +122,7 @@ TEST(CompilerPluginTest, Compile) {
   auto model_wrap = testing::LoadTestFileModel("mul_simple.tflite");
   auto& model = *model_wrap.Get();
 
-  auto result = plugins->front().Compile(model.Subgraphs());
+  auto result = plugins->front().Compile(&model);
   ASSERT_TRUE(result);
 
   auto byte_code = result->ByteCode();

@@ -49,6 +49,8 @@ message DebugOptions {
     ALLTOALL = 5;
     COLLECTIVEPERMUTE = 6;
     RAGGEDALLTOALL = 7;
+    // Add more collectives before ALL
+    ALLCOLLECTIVES = 8;
   }
 
   // Commands are categorized into 5 types:
@@ -130,6 +132,14 @@ message DebugOptions {
   // clang-format off
   // go/keep-sorted start newline_separated=yes skip_lines=1 ignore_prefixes=["bool","int32","string"]
   // clang-format on
+  // Controls XnnGraphFusion HLO pass.
+  XnnGraphFusionMode xla_cpu_experimental_xnn_graph_fusion_mode = 365;
+
+  enum XnnGraphFusionMode {
+    XNN_GRAPH_FUSION_MODE_DISABLED = 0;
+    XNN_GRAPH_FUSION_MODE_GREEDY = 1;
+  }
+
   // Use region analysis in copy insertion pass.
   bool xla_cpu_copy_insertion_use_region_analysis = 337;
 
@@ -208,6 +218,24 @@ message DebugOptions {
   // clang-format off
   // go/keep-sorted start newline_separated=yes skip_lines=2 ignore_prefixes=["AutotuneCacheMode","bool","float","int32","int64","LibNvJitLinkMode","map<string, string>","PGLEStrictnessLevel","repeated CollectiveOpType","repeated CommandBufferCmdType","repeated string","ShapeChecks","string","WhileLoopUnrolling"] // NOLINT
   // clang-format on
+
+  PipelineParallelismOptLevel
+      xla_gpu_experimental_pipeline_parallelism_opt_level = 351;
+
+  // Experimental optimizations for SPMD-based pipeline parallelism on GPU.
+  enum PipelineParallelismOptLevel {
+    PIPELINE_PARALLELISM_OPT_LEVEL_DISABLE = 0;
+    // Enable only collective-permute decomposer to overlap send and recv
+    // separately, allowing to reveive data in the previous iteration while
+    // sending the current iteration.
+    PIPELINE_PARALLELISM_OPT_LEVEL_ENABLE = 1;
+    // Additionally, enable collective-permute cycle decomposer. This set of
+    // optimizations will lead to best overlap for trivial pipeline parallelism
+    // implementation.
+    // TODO(b/393127848): Remove these optimizations when all users implement
+    // cycle decomposition at the JAX level.
+    PIPELINE_PARALLELISM_OPT_LEVEL_ENABLE_CYCLE_DECOMPOSER = 2;
+  }
 
   // Denylist for cuDNN convolutions.
   string xla_gpu_algorithm_denylist_path = 128;
@@ -358,8 +386,6 @@ message DebugOptions {
   // Whether to use cuBLASLt for GEMMs on GPUs.
   bool xla_gpu_enable_cublaslt = 166;
 
-  bool xla_gpu_enable_cudnn_fmha = 218;
-
   // Whether to use the cuDNN frontend API for convolutions when possible.
   bool xla_gpu_enable_cudnn_frontend = 160;
 
@@ -504,8 +530,8 @@ message DebugOptions {
   // Pre-existing block-level fusions are left unmodified.
   bool xla_gpu_experimental_enable_fusion_block_level_rewriter = 334;
 
-  // Experimental optimizations for SPMD-based pipeline parallelism on GPU.
-  bool xla_gpu_experimental_enable_pipeline_parallelism_opt = 351;
+  // If true, enable synchronous collective combining.
+  bool xla_gpu_experimental_enable_sync_collective_combining = 366;
 
   // When enabled, the PriorityFusion pass will try to make Triton fusions first
   // and foremost where it is possible.
@@ -893,6 +919,7 @@ message DebugOptions {
 
   // Directory to dump into.
   string xla_dump_to = 109;
+  bool xla_flags_reset = 364;
 
   // If specified, will only dump modules which match this regexp.
   string xla_dump_hlo_module_re = 110;
@@ -1108,13 +1135,13 @@ message DebugOptions {
 
   // Whether to ignore channel ids(including verifier channel id checks)
   // for collectives in the given HLO.
-  bool xla_experimental_ignore_channel_id = 330;
+  bool xla_ignore_channel_id = 330;
 
   bool xla_pjrt_allow_auto_layout_in_hlo = 344;
 
   // Note: when adding a new flag, please add it to one of the hardware-specific
   // or hardware-agnostic sections at the top of this proto message.
-  // Next id: 364
+  // Next id: 367
 
   // Extra options to pass to the compilation backend (e.g. LLVM); specific
   // interpretation of these values is left to the backend.
@@ -1140,8 +1167,9 @@ message DebugOptions {
   // xla_gpu_triton_fusion_level
   // xla_gpu_enable_bf16_3way_gemm
   // xla_gpu_enable_bf16_6way_gemm
+  // xla_gpu_enable_cudnn_fmha
   reserved 5, 117, 133, 139, 176, 178, 180, 193, 214, 194, 221, 242, 206, 320,
-      325, 326, 332, 361, 270, 229, 271, 279;
+      325, 326, 332, 361, 270, 229, 271, 279, 218;
 }
 
 // Contains flags which affects the GPU compilation result.
